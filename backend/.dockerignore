@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+ethara_ai_venv/
+.env
+.git/
