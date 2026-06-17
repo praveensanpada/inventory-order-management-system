@@ -1,7 +1,9 @@
 import { Alert, Box, Grid, Paper, Stack, Typography } from '@mui/material';
 import { Inventory2, People, ReceiptLong, TrendingUp } from '@mui/icons-material';
-import { useQuery } from '@tanstack/react-query';
-import { getDashboardSummary } from '../api/dashboardApi';
+import { useQueries } from '@tanstack/react-query';
+import { getProducts } from '../api/productApi';
+import { getCustomers } from '../api/customerApi';
+import { getOrders } from '../api/orderApi';
 
 function Metric({ title, value, icon }) {
   return (
@@ -18,8 +20,25 @@ function Metric({ title, value, icon }) {
 }
 
 export default function Dashboard() {
-  const { data, isLoading, error } = useQuery({ queryKey: ['dashboard'], queryFn: getDashboardSummary });
-  const summary = data?.data;
+  const [productsQuery, customersQuery, ordersQuery] = useQueries({
+    queries: [
+      { queryKey: ['products'], queryFn: getProducts },
+      { queryKey: ['customers'], queryFn: getCustomers },
+      { queryKey: ['orders'], queryFn: getOrders }
+    ]
+  });
+  const isLoading = productsQuery.isLoading || customersQuery.isLoading || ordersQuery.isLoading;
+  const error = productsQuery.error || customersQuery.error || ordersQuery.error;
+  const products = productsQuery.data?.data || [];
+  const customers = customersQuery.data?.data || [];
+  const orders = ordersQuery.data?.data || [];
+  const summary = {
+    total_products: products.length,
+    total_customers: customers.length,
+    total_orders: orders.length,
+    low_stock_products: products.filter((product) => Number(product.stock_quantity) <= 5),
+    total_inventory_value: products.reduce((total, product) => total + Number(product.price || 0) * Number(product.stock_quantity || 0), 0)
+  };
 
   if (error) return <Alert severity="error">{error.message}</Alert>;
 
@@ -33,7 +52,7 @@ export default function Dashboard() {
         <Grid item xs={12} md={3}><Metric title="Products" value={isLoading ? '...' : summary.total_products} icon={<Inventory2 color="primary" />} /></Grid>
         <Grid item xs={12} md={3}><Metric title="Customers" value={isLoading ? '...' : summary.total_customers} icon={<People color="primary" />} /></Grid>
         <Grid item xs={12} md={3}><Metric title="Orders" value={isLoading ? '...' : summary.total_orders} icon={<ReceiptLong color="primary" />} /></Grid>
-        <Grid item xs={12} md={3}><Metric title="Inventory Value" value={isLoading ? '...' : `$${summary.total_inventory_value}`} icon={<TrendingUp color="primary" />} /></Grid>
+        <Grid item xs={12} md={3}><Metric title="Inventory Value" value={isLoading ? '...' : `$${summary.total_inventory_value.toFixed(2)}`} icon={<TrendingUp color="primary" />} /></Grid>
       </Grid>
       <Paper sx={{ p: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Low Stock Products</Typography>
